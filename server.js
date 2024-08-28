@@ -259,9 +259,6 @@ app.use(express.static('C:\\jaff\\sih\\public'));
 app.get('/', (req, res) => {
   res.sendFile('C:\\jaff\\sih\\public\\index.html');
 });
-const knownColleges = [
-  'IIT Gandhinagar', 'Harvard University', 'MIT', 'Stanford University', 'University of California'
-];
 
 let latestPrompt = '';
 
@@ -295,23 +292,58 @@ async function findIntent(text) {
   }
 }
 
+const collegeRelatedKeywords = [
+  'course', 'fee', 'admission', 'placement', 'cut-off', 
+  'ranking', 'scholarship', 'faculty', 'phone number', 
+  'description', 'review', 'btech', 'mtech', 'mba', 'phd',
+  "course and fee strct for B.Tech/B.E",
+  "course and fee strct for M.Tech/M.Tech",
+  "course and fee strct for MBA/PGDM",
+  "course and fee strct for Ph.D",
+  "review",
+  "admission",
+  "placement",
+  "cut-off",
+  "ranking",
+  "description",
+  "scholarship",
+  "faculty",
+  "phone number"
+];
+const collegeNames = [
+  'IIT Gandhinagar', 'Harvard University', 'MIT', 'Stanford University', 'University of California'
+
+];
+
 async function handleQuery(prompt) {
   let responseText = '';
-
   const detectedLanguage = await detectLanguage(prompt);
   console.log(detectedLanguage);
 
   if (detectedLanguage !== 'en') {
     prompt = await translateToEnglish(prompt);
+    prompt = prompt.toLowerCase()
     console.log('Translated prompt:', prompt);
   }
+  const combinedKeywords = [...collegeRelatedKeywords, ...collegeNames.map(name => name.toLowerCase())];
+  const containsCollegeKeywords = combinedKeywords.some(keyword =>
+  prompt.toLowerCase().includes(keyword)
+);
 
-  const intent = await findIntent(prompt);
+
+
+let intent;
+if (containsCollegeKeywords) {
+  intent = await findIntent(prompt);
   console.log('Detected intent:', intent);
+} else {
+  intent = undefined;
+  console.log('No college-related keywords found. Intent set to:', intent);
+}
   
 function extractCollegeName(prompt) {
   const lowerCasePrompt = prompt.toLowerCase();
-  for (const college of knownColleges) {
+  for (const college of collegeNames) {
     if (lowerCasePrompt.includes(college.toLowerCase())) {
       return college;
     }
@@ -323,7 +355,7 @@ function extractCollegeName(prompt) {
   console.log('Extracted college name:', collegeName);
 
   switch (intent) {
-    case "course and fee strct for B.Tech/B.E": {
+    case "course and fee strct for b.tech/b.e": {
       const queryText = `SELECT courseandfeestructureforbtech_be_course FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -332,7 +364,7 @@ function extractCollegeName(prompt) {
       break;
     }
   
-    case "course and fee strct for M.Tech/M.Tech": {
+    case "course and fee strct for m.tech/m.e": {
       const queryText = `SELECT courseandfeestructureforme_mtech_course FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -341,7 +373,7 @@ function extractCollegeName(prompt) {
       break;
     }
 
-    case "course and fee strct for MBA/PGDM ": {
+    case "course and fee strct for mba/pgdm ": {
       const queryText = `SELECT courseandfeestructureformba_pgdm_course FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -350,7 +382,7 @@ function extractCollegeName(prompt) {
       break;
     }
 
-    case "course and fee strct for Ph.D": {
+    case "course and fee strct for ph.d": {
       const queryText = `SELECT courseandfeestructureforphdcourse FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -395,8 +427,6 @@ function extractCollegeName(prompt) {
     }
 
     case "ranking": {
-      const match = prompt.match(/ranking\s+of\s+(.+)/i);
-      const collegeName = match ? match[1].trim() : '';
       const queryText = `SELECT ranking FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -406,7 +436,6 @@ function extractCollegeName(prompt) {
     }
 
     case "description": {
-  
       const queryText = `SELECT collegedescription FROM collegecoursedetails WHERE college ILIKE $1;`;
       const result = await pool.query(queryText, [collegeName]);
       responseText = result.rows.length > 0
@@ -475,7 +504,8 @@ io.on('connection', (socket) => {
     }
 
     try {
-      const responseText = await handleQuery(prompt);
+      console.log(prompt.toLowerCase())
+      const responseText = await handleQuery(prompt.toLowerCase());
       socket.emit('message', { type: 'bot', text: responseText });
     } catch (error) {
       console.error('Error handling query:', error);
