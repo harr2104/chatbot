@@ -486,6 +486,10 @@ function extractCollegeName(prompt) {
         .trim();
       break;
     }
+    if (detectedLanguage !== 'en') {
+      responseText = await translateToDetectedLanguage(responseText, detectedLanguage);
+      console.log('Translated response text:', responseText);
+    }
   }
   
   return responseText;
