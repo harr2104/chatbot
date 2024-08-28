@@ -282,6 +282,19 @@ async function translateToEnglish(text) {
   }
 }
 
+async function translateToDetectedLanguage(text, detectedlanguage) {
+  try {
+    const response = await axios.post('http://localhost:5000/translate', {
+      text,
+      targetLanguage: detectedlanguage
+    });
+    return response.data.translated_text;
+  } catch (error) {
+    console.error('Error translating text:', error);
+    throw new Error('Translation failed');
+  }
+}
+
 async function findIntent(text) {
   try {
     const response = await axios.post('http://localhost:5000/predict-intent', { text });
@@ -317,10 +330,10 @@ const collegeNames = [
 
 async function handleQuery(prompt) {
   let responseText = '';
-  const detectedLanguage = await detectLanguage(prompt);
-  console.log(detectedLanguage);
+  const detectedlanguage = await detectLanguage(prompt);
+  console.log(detectedlanguage);
 
-  if (detectedLanguage !== 'en') {
+  if (detectedlanguage !== 'en') {
     prompt = await translateToEnglish(prompt);
     prompt = prompt.toLowerCase()
     console.log('Translated prompt:', prompt);
@@ -486,12 +499,15 @@ function extractCollegeName(prompt) {
         .trim();
       break;
     }
-    if (detectedLanguage !== 'en') {
-      responseText = await translateToDetectedLanguage(responseText, detectedLanguage);
-      console.log('Translated response text:', responseText);
-    }
   }
-  
+
+
+  if (detectedlanguage !== 'en') {
+    console.log(detectedlanguage);
+    responseText = await translateToDetectedLanguage(responseText, detectedlanguage);
+    console.log('Translated response text:', responseText);
+  }
+
   return responseText;
   
 }
